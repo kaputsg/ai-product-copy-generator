@@ -403,23 +403,27 @@ POST /api/generate
 - DeepSeek API 接入
 - JSON 结构化输出
 
+
+把它替换成下面这段：
+
+```markdown
 ## 项目截图
 
-建议补充以下截图：
+### 单商品生成页面
 
-```text
-docs/images/single-product-form.png
-docs/images/single-product-result.png
-docs/images/excel-template.png
-docs/images/excel-result.png
-```
+![单商品生成页面](docs/images/single-product-form.png)
 
-截图内容建议：
+### 单商品生成结果
 
-1. 单商品生成页面
-2. 单商品生成结果
-3. Excel 模板下载和上传区域
-4. 生成后的 Excel 结果表格
+![单商品生成结果](docs/images/single-product-result.png)
+
+### Excel 批量生成与模板下载
+
+![Excel 批量生成与模板下载](docs/images/excel-template.png)
+
+### Excel 批量生成结果
+
+![Excel 批量生成结果](docs/images/excel-result.png)
 
 ## 后续可优化方向
 
