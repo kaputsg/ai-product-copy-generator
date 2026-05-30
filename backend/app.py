@@ -1,5 +1,6 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_file
 from deepseek_text import generate_product_copy
+from excel_service import ExcelValidationError, generate_excel_file
 from withLC import get_product_info
 
 app = Flask(__name__)
@@ -42,3 +43,27 @@ def generate_text():
         return jsonify({"error": str(error)}), 500
 
     return jsonify({"result": result})
+
+@app.route("/api/generate-excel", methods=["POST"])
+def generate_excel():
+    file = request.files.get("file")
+
+    if not file or not file.filename:
+        return jsonify({"error": "请上传 Excel 文件"}), 400
+
+    if not file.filename.lower().endswith(".xlsx"):
+        return jsonify({"error": "只支持 .xlsx 文件"}), 400
+
+    try:
+        output = generate_excel_file(file.stream)
+    except ExcelValidationError as error:
+        return jsonify({"error": str(error)}), 400
+    except Exception as error:
+        return jsonify({"error": str(error)}), 500
+
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name="generated_products.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
