@@ -3,15 +3,28 @@ import { computed, reactive, ref } from 'vue'
 import { useGenerate, type GenerateTextPayload } from '@/composables/useGenerate'
 import { useExcelGenerate } from '@/composables/useExcelGenerate'
 import { useExcelTemplate } from '@/composables/useExcelTemplate'
+import {
+  CUSTOM_OPTION,
+  DEFAULT_LANGUAGE,
+  DEFAULT_PLATFORM,
+  DEFAULT_TONE,
+  LANGUAGE_OPTIONS,
+  PLATFORM_OPTIONS,
+  TONE_OPTIONS
+} from '@/constants/copyOptions'
 
 const form = reactive<GenerateTextPayload>({
   product_name: '',
   product_info: '',
-  target_platform: '淘宝',
-  tone: '简洁、有购买欲',
-  language: '中文'
+  target_platform: DEFAULT_PLATFORM,
+  tone: DEFAULT_TONE,
+  language: DEFAULT_LANGUAGE
 })
 
+const selectedPlatform = ref(DEFAULT_PLATFORM)
+const customPlatform = ref('')
+const selectedTone = ref(DEFAULT_TONE)
+const customTone = ref('')
 const validationError = ref('')
 const { generate, result, isLoading, errorMessage } = useGenerate()
 const selectedExcelFile = ref<File | null>(null)
@@ -29,6 +42,8 @@ const {
 
 const canSubmit = computed(() => form.product_name.trim().length > 0 && !isLoading.value)
 const displayError = computed(() => validationError.value || errorMessage.value)
+const isCustomPlatform = computed(() => selectedPlatform.value === CUSTOM_OPTION)
+const isCustomTone = computed(() => selectedTone.value === CUSTOM_OPTION)
 
 const submitForm = async () => {
   validationError.value = ''
@@ -38,13 +53,29 @@ const submitForm = async () => {
     return
   }
 
+  const targetPlatform = isCustomPlatform.value ? customPlatform.value.trim() : selectedPlatform.value
+  const tone = isCustomTone.value ? customTone.value.trim() : selectedTone.value
+
+  if (!targetPlatform) {
+    validationError.value = '请填写自定义目标平台'
+    return
+  }
+
+  if (!tone) {
+    validationError.value = '请填写自定义文案语气'
+    return
+  }
+
+  form.target_platform = targetPlatform
+  form.tone = tone
+
   try {
     await generate({
       product_name: form.product_name.trim(),
       product_info: form.product_info.trim(),
-      target_platform: form.target_platform.trim() || '淘宝',
-      tone: form.tone.trim() || '简洁、有购买欲',
-      language: form.language.trim() || '中文'
+      target_platform: targetPlatform,
+      tone,
+      language: form.language.trim() || DEFAULT_LANGUAGE
     })
   } catch {
     // 错误信息由 useGenerate 统一维护，页面只负责展示。
@@ -109,18 +140,52 @@ const handleTemplateDownload = async () => {
         <div class="field-row">
           <div class="field-group">
             <label for="target-platform">目标平台</label>
-            <input id="target-platform" v-model="form.target_platform" type="text" />
+            <select id="target-platform" v-model="selectedPlatform">
+              <option v-for="platform in PLATFORM_OPTIONS" :key="platform" :value="platform">
+                {{ platform }}
+              </option>
+            </select>
           </div>
 
           <div class="field-group">
             <label for="language">输出语言</label>
-            <input id="language" v-model="form.language" type="text" />
+            <select id="language" v-model="form.language">
+              <option v-for="language in LANGUAGE_OPTIONS" :key="language" :value="language">
+                {{ language }}
+              </option>
+            </select>
           </div>
+        </div>
+
+        <div v-if="isCustomPlatform" class="field-group">
+          <label for="custom-platform">自定义平台</label>
+          <input
+            id="custom-platform"
+            v-model="customPlatform"
+            type="text"
+            placeholder="例如：得物、快手小店、独立站"
+            autocomplete="off"
+          />
         </div>
 
         <div class="field-group">
           <label for="tone">文案语气</label>
-          <input id="tone" v-model="form.tone" type="text" />
+          <select id="tone" v-model="selectedTone">
+            <option v-for="tone in TONE_OPTIONS" :key="tone" :value="tone">
+              {{ tone }}
+            </option>
+          </select>
+        </div>
+
+        <div v-if="isCustomTone" class="field-group">
+          <label for="custom-tone">自定义语气</label>
+          <input
+            id="custom-tone"
+            v-model="customTone"
+            type="text"
+            placeholder="例如：温柔细腻、适合母婴用户"
+            autocomplete="off"
+          />
         </div>
 
         <button class="submit-button" type="submit" :disabled="!canSubmit">
@@ -407,6 +472,7 @@ label span {
 }
 
 input,
+select,
 textarea {
   background: #f9fafb;
   border: 1px solid #d1d5db;
@@ -421,6 +487,10 @@ textarea {
 }
 
 input[type='file'] {
+  cursor: pointer;
+}
+
+select {
   cursor: pointer;
 }
 
@@ -440,6 +510,7 @@ textarea {
 }
 
 input:focus,
+select:focus,
 textarea:focus {
   border-color: #d97706;
   box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15);

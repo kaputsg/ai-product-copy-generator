@@ -5,6 +5,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 from openai import OpenAI
 
+from copy_presets import get_platform_profile, get_tone_profile
+
 
 load_dotenv(dotenv_path=Path(__file__).with_name(".env"))
 
@@ -27,6 +29,8 @@ def generate_product_copy(
 ) -> dict:
     model = os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash")
     client = _get_client()
+    platform_profile = get_platform_profile(target_platform)
+    tone_profile = get_tone_profile(tone)
 
     system_prompt = """
 你是一个专业的电商运营文案助手。
@@ -47,6 +51,9 @@ short_video_script: 80字以内短视频口播文案
 目标平台：{target_platform}
 文案语气：{tone}
 输出语言：{language}
+
+目标平台风格规则：{platform_profile}
+文案语气风格规则：{tone_profile}
 
 要求：
 1. 标题适合电商平台搜索。

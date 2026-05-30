@@ -4,7 +4,10 @@ from io import BytesIO
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
+from openpyxl.workbook.defined_name import DefinedName
+from openpyxl.worksheet.datavalidation import DataValidation
 
+from copy_presets import LANGUAGE_OPTIONS, PLATFORM_OPTIONS, TONE_OPTIONS
 from deepseek_text import generate_product_copy
 
 
@@ -84,12 +87,17 @@ def generate_excel_template() -> BytesIO:
     workbook = Workbook()
     sheet = workbook.active
     sheet.title = "商品信息模板"
+    options_sheet = workbook.create_sheet("_options")
     sheet.append(TEMPLATE_HEADERS)
 
     for row in TEMPLATE_EXAMPLE_ROWS:
         sheet.append(row)
 
+    _write_template_options(options_sheet)
+    _apply_template_named_ranges(workbook)
+    options_sheet.sheet_state = "hidden"
     _apply_template_layout(sheet)
+    _apply_template_dropdowns(sheet)
 
     output = BytesIO()
     workbook.save(output)
@@ -271,6 +279,47 @@ def _apply_template_layout(sheet) -> None:
     sheet.freeze_panes = "A2"
     last_column = get_column_letter(len(TEMPLATE_HEADERS))
     sheet.auto_filter.ref = f"A1:{last_column}{max(sheet.max_row, 1)}"
+
+
+def _apply_template_dropdowns(sheet) -> None:
+    _add_dropdown_validation(sheet, "C2:C100", "=PlatformOptions")
+    _add_dropdown_validation(sheet, "D2:D100", "=ToneOptions")
+    _add_dropdown_validation(sheet, "E2:E100", "=LanguageOptions")
+
+
+def _apply_template_named_ranges(workbook) -> None:
+    workbook.defined_names.add(
+        DefinedName("PlatformOptions", attr_text="'_options'!$A$1:$A$8")
+    )
+    workbook.defined_names.add(
+        DefinedName("ToneOptions", attr_text="'_options'!$B$1:$B$9")
+    )
+    workbook.defined_names.add(
+        DefinedName("LanguageOptions", attr_text="'_options'!$C$1:$C$2")
+    )
+
+
+def _write_template_options(sheet) -> None:
+    for row_index, option in enumerate(PLATFORM_OPTIONS, start=1):
+        sheet.cell(row=row_index, column=1, value=option)
+
+    for row_index, option in enumerate(TONE_OPTIONS, start=1):
+        sheet.cell(row=row_index, column=2, value=option)
+
+    for row_index, option in enumerate(LANGUAGE_OPTIONS, start=1):
+        sheet.cell(row=row_index, column=3, value=option)
+
+
+def _add_dropdown_validation(sheet, cell_range: str, formula: str) -> None:
+    validation = DataValidation(
+        type="list",
+        formula1=formula,
+        allow_blank=True,
+        showDropDown=False,
+    )
+
+    sheet.add_data_validation(validation)
+    validation.add(cell_range)
 
 
 def _cell_to_text(value) -> str:
