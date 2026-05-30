@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { useGenerate, type GenerateTextPayload } from '@/composables/useGenerate'
+import { useExcelGenerate } from '@/composables/useExcelGenerate'
 
 const form = reactive<GenerateTextPayload>({
   product_name: '',
@@ -12,6 +13,13 @@ const form = reactive<GenerateTextPayload>({
 
 const validationError = ref('')
 const { generate, result, isLoading, errorMessage } = useGenerate()
+const selectedExcelFile = ref<File | null>(null)
+const {
+  generateExcel,
+  isLoading: isExcelLoading,
+  errorMessage: excelErrorMessage,
+  successMessage: excelSuccessMessage
+} = useExcelGenerate()
 
 const canSubmit = computed(() => form.product_name.trim().length > 0 && !isLoading.value)
 const displayError = computed(() => validationError.value || errorMessage.value)
@@ -34,6 +42,19 @@ const submitForm = async () => {
     })
   } catch {
     // 错误信息由 useGenerate 统一维护，页面只负责展示。
+  }
+}
+
+const handleExcelFileChange = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  selectedExcelFile.value = input.files?.[0] ?? null
+}
+
+const submitExcelForm = async () => {
+  try {
+    await generateExcel(selectedExcelFile.value)
+  } catch {
+    // 错误信息由 useExcelGenerate 统一维护，页面只负责展示。
   }
 }
 </script>
@@ -137,6 +158,68 @@ const submitForm = async () => {
         </div>
       </section>
     </section>
+
+    <section class="card excel-card">
+      <div class="excel-layout">
+        <div class="excel-content">
+          <p class="section-label">批量生成</p>
+          <h2>Excel 批量生成</h2>
+          <p class="excel-description">
+            上传商品表格后，系统会批量生成商品标题、卖点、详情页文案、搜索关键词和短视频口播文案，并自动下载结果表格。
+          </p>
+
+          <div class="template-note" aria-label="Excel 模板字段说明">
+            <div>
+              <h3>必填</h3>
+              <p><span>商品名称</span></p>
+            </div>
+            <div>
+              <h3>可选</h3>
+              <p>
+                <span>商品信息</span>
+                <span>目标平台</span>
+                <span>文案语气</span>
+                <span>输出语言</span>
+              </p>
+            </div>
+            <div>
+              <h3>默认值</h3>
+              <p>
+                <span>目标平台：淘宝</span>
+                <span>文案语气：简洁、有购买欲</span>
+                <span>输出语言：中文</span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <form class="excel-upload-form" @submit.prevent="submitExcelForm">
+          <div class="field-group">
+            <label for="excel-file">选择 Excel 文件</label>
+            <input
+              id="excel-file"
+              type="file"
+              accept=".xlsx"
+              :disabled="isExcelLoading"
+              @change="handleExcelFileChange"
+            />
+            <p v-if="selectedExcelFile" class="file-name">
+              已选择：{{ selectedExcelFile.name }}
+            </p>
+            <p class="upload-hint">
+              仅支持 .xlsx 文件，建议一次不超过 20 条商品，避免接口费用过高。
+            </p>
+          </div>
+
+          <button class="submit-button" type="submit" :disabled="isExcelLoading">
+            {{ isExcelLoading ? '生成中，请稍等...' : '上传并生成结果表格' }}
+          </button>
+
+          <p v-if="excelErrorMessage" class="error-message">{{ excelErrorMessage }}</p>
+          <p v-if="excelSuccessMessage" class="success-message">{{ excelSuccessMessage }}</p>
+        </form>
+      </div>
+    </section>
   </main>
 </template>
 
@@ -192,6 +275,86 @@ h1 {
   padding: 24px;
 }
 
+.excel-card {
+  margin-top: 24px;
+  padding: 28px;
+}
+
+.excel-layout {
+  align-items: start;
+  display: grid;
+  gap: 28px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+}
+
+.section-label {
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.excel-card h2 {
+  color: #111827;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.3;
+  margin: 0 0 10px;
+}
+
+.excel-description {
+  color: #4b5563;
+  font-size: 15px;
+  line-height: 1.8;
+  margin-bottom: 20px;
+  max-width: 780px;
+}
+
+.template-note {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 18px;
+}
+
+.template-note h3 {
+  color: #374151;
+  font-size: 13px;
+  font-weight: 800;
+  margin: 0 0 8px;
+}
+
+.template-note p {
+  color: #4b5563;
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+  gap: 6px;
+  line-height: 1.6;
+}
+
+code {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  color: #111827;
+  display: inline-flex;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  font-size: 13px;
+  padding: 3px 7px;
+  width: fit-content;
+}
+
+.excel-upload-form {
+  align-self: start;
+  padding-top: 32px;
+}
+
 .field-group {
   display: flex;
   flex-direction: column;
@@ -229,6 +392,21 @@ textarea {
   padding: 11px 12px;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
   width: 100%;
+}
+
+input[type='file'] {
+  cursor: pointer;
+}
+
+input[type='file']::file-selector-button {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  color: #111827;
+  cursor: pointer;
+  font-weight: 700;
+  margin-right: 12px;
+  padding: 8px 12px;
 }
 
 textarea {
@@ -276,6 +454,28 @@ textarea:focus {
   font-size: 14px;
   margin-top: 14px;
   padding: 10px 12px;
+}
+
+.success-message {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  color: #166534;
+  font-size: 14px;
+  margin-top: 14px;
+  padding: 10px 12px;
+}
+
+.file-name {
+  color: #4b5563;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.upload-hint {
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 1.7;
 }
 
 .result-card {
@@ -373,6 +573,8 @@ ul {
 
 @media (max-width: 900px) {
   .workspace-grid,
+  .excel-layout,
+  .template-note,
   .field-row {
     grid-template-columns: 1fr;
   }

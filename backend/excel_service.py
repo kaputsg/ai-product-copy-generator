@@ -2,25 +2,48 @@ import os
 from io import BytesIO
 
 from openpyxl import Workbook, load_workbook
+from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.utils import get_column_letter
 
 from deepseek_text import generate_product_copy
 
 
 DEFAULT_MAX_EXCEL_ROWS = 20
+INPUT_HEADER_ALIASES = {
+    "product_name": ("商品名称", "product_name"),
+    "product_info": ("商品信息", "product_info"),
+    "target_platform": ("目标平台", "target_platform"),
+    "tone": ("文案语气", "tone"),
+    "language": ("输出语言", "language"),
+}
 OUTPUT_HEADERS = [
-    "product_name",
-    "product_info",
-    "target_platform",
-    "tone",
-    "language",
-    "generated_title",
-    "generated_selling_points",
-    "generated_description",
-    "generated_keywords",
-    "generated_short_video_script",
-    "status",
-    "error_message",
+    "商品名称",
+    "商品信息",
+    "目标平台",
+    "文案语气",
+    "输出语言",
+    "生成标题",
+    "生成卖点",
+    "生成详情页文案",
+    "生成搜索关键词",
+    "生成短视频口播文案",
+    "处理状态",
+    "错误信息",
 ]
+COLUMN_WIDTHS = {
+    "商品名称": 24,
+    "商品信息": 36,
+    "目标平台": 14,
+    "文案语气": 18,
+    "输出语言": 12,
+    "生成标题": 36,
+    "生成卖点": 42,
+    "生成详情页文案": 60,
+    "生成搜索关键词": 36,
+    "生成短视频口播文案": 48,
+    "处理状态": 12,
+    "错误信息": 36,
+}
 
 
 class ExcelValidationError(ValueError):
@@ -33,11 +56,11 @@ def generate_excel_file(file_stream) -> BytesIO:
     header_map = _build_header_map(sheet)
 
     if "product_name" not in header_map:
-        raise ExcelValidationError("Excel 必须包含 product_name 列")
+        raise ExcelValidationError("Excel 必须包含“商品名称”或“product_name”列")
 
     output_workbook = Workbook()
     output_sheet = output_workbook.active
-    output_sheet.title = "generated_products"
+    output_sheet.title = "商品文案结果"
     output_sheet.append(OUTPUT_HEADERS)
 
     processed_count = 0
@@ -63,6 +86,8 @@ def generate_excel_file(file_stream) -> BytesIO:
         output_sheet.append(_build_output_row(row_data))
         processed_count += 1
 
+    _apply_output_layout(output_sheet)
+
     output = BytesIO()
     output_workbook.save(output)
     output.seek(0)
@@ -75,8 +100,9 @@ def _build_header_map(sheet) -> dict:
 
     for index, header in enumerate(first_row):
         header_name = _cell_to_text(header)
-        if header_name and header_name not in header_map:
-            header_map[header_name] = index
+        column_name = _normalize_input_header(header_name)
+        if column_name and column_name not in header_map:
+            header_map[column_name] = index
 
     return header_map
 
@@ -98,7 +124,7 @@ def _build_output_row(row_data: dict) -> list:
         "keywords": "",
         "short_video_script": "",
     }
-    status = "success"
+    status = "成功"
     error_message = ""
 
     try:
@@ -115,7 +141,7 @@ def _build_output_row(row_data: dict) -> list:
         generated["keywords"] = _join_list_value(result.get("keywords"))
         generated["short_video_script"] = _cell_to_text(result.get("short_video_script"))
     except Exception as error:
-        status = "failed"
+        status = "失败"
         error_message = str(error)
 
     return [
@@ -142,6 +168,38 @@ def _join_list_value(value) -> str:
         return "；".join(_cell_to_text(item) for item in value if _cell_to_text(item))
 
     return _cell_to_text(value)
+
+
+def _normalize_input_header(header_name: str) -> str:
+    for column_name, aliases in INPUT_HEADER_ALIASES.items():
+        if header_name in aliases:
+            return column_name
+
+    return ""
+
+
+def _apply_output_layout(sheet) -> None:
+    header_fill = PatternFill(fill_type="solid", fgColor="F3F4F6")
+    header_font = Font(bold=True)
+    top_wrap_alignment = Alignment(vertical="top", wrap_text=True)
+
+    for cell in sheet[1]:
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = top_wrap_alignment
+
+    for row in sheet.iter_rows(min_row=2):
+        for cell in row:
+            cell.alignment = top_wrap_alignment
+
+    for index, header in enumerate(OUTPUT_HEADERS, start=1):
+        column_letter = get_column_letter(index)
+        sheet.column_dimensions[column_letter].width = COLUMN_WIDTHS[header]
+
+    sheet.row_dimensions[1].height = 28
+    sheet.freeze_panes = "A2"
+    last_column = get_column_letter(len(OUTPUT_HEADERS))
+    sheet.auto_filter.ref = f"A1:{last_column}{max(sheet.max_row, 1)}"
 
 
 def _cell_to_text(value) -> str:
