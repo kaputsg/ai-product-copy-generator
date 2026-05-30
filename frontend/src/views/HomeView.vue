@@ -2,6 +2,7 @@
 import { computed, reactive, ref } from 'vue'
 import { useGenerate, type GenerateTextPayload } from '@/composables/useGenerate'
 import { useExcelGenerate } from '@/composables/useExcelGenerate'
+import { useExcelTemplate } from '@/composables/useExcelTemplate'
 
 const form = reactive<GenerateTextPayload>({
   product_name: '',
@@ -20,6 +21,11 @@ const {
   errorMessage: excelErrorMessage,
   successMessage: excelSuccessMessage
 } = useExcelGenerate()
+const {
+  downloadTemplate,
+  isLoading: isTemplateLoading,
+  errorMessage: templateErrorMessage
+} = useExcelTemplate()
 
 const canSubmit = computed(() => form.product_name.trim().length > 0 && !isLoading.value)
 const displayError = computed(() => validationError.value || errorMessage.value)
@@ -55,6 +61,14 @@ const submitExcelForm = async () => {
     await generateExcel(selectedExcelFile.value)
   } catch {
     // 错误信息由 useExcelGenerate 统一维护，页面只负责展示。
+  }
+}
+
+const handleTemplateDownload = async () => {
+  try {
+    await downloadTemplate()
+  } catch {
+    // 错误信息由 useExcelTemplate 统一维护，页面只负责展示。
   }
 }
 </script>
@@ -211,10 +225,17 @@ const submitExcelForm = async () => {
             </p>
           </div>
 
-          <button class="submit-button" type="submit" :disabled="isExcelLoading">
-            {{ isExcelLoading ? '生成中，请稍等...' : '上传并生成结果表格' }}
-          </button>
+          <div class="upload-actions">
+            <button class="template-button" type="button" :disabled="isTemplateLoading" @click="handleTemplateDownload">
+              {{ isTemplateLoading ? '下载中...' : '下载 Excel 模板' }}
+            </button>
 
+            <button class="submit-button" type="submit" :disabled="isExcelLoading">
+              {{ isExcelLoading ? '生成中，请稍等...' : '上传并生成结果表格' }}
+            </button>
+          </div>
+
+          <p v-if="templateErrorMessage" class="error-message">{{ templateErrorMessage }}</p>
           <p v-if="excelErrorMessage" class="error-message">{{ excelErrorMessage }}</p>
           <p v-if="excelSuccessMessage" class="success-message">{{ excelSuccessMessage }}</p>
         </form>
@@ -355,6 +376,11 @@ code {
   padding-top: 32px;
 }
 
+.upload-actions {
+  display: grid;
+  gap: 10px;
+}
+
 .field-group {
   display: flex;
   flex-direction: column;
@@ -436,13 +462,39 @@ textarea:focus {
   width: 100%;
 }
 
+.template-button {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  color: #111827;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 15px;
+  font-weight: 700;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 22px;
+  transition: border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  width: 100%;
+}
+
 .submit-button:hover:not(:disabled) {
   background: #92400e;
   transform: translateY(-1px);
 }
 
-.submit-button:disabled {
+.template-button:hover:not(:disabled) {
+  border-color: #92400e;
+  color: #92400e;
+  transform: translateY(-1px);
+}
+
+.submit-button:disabled,
+.template-button:disabled {
   background: #9ca3af;
+  border-color: #9ca3af;
+  color: #ffffff;
   cursor: not-allowed;
 }
 

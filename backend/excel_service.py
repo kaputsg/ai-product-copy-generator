@@ -30,6 +30,29 @@ OUTPUT_HEADERS = [
     "处理状态",
     "错误信息",
 ]
+TEMPLATE_HEADERS = [
+    "商品名称",
+    "商品信息",
+    "目标平台",
+    "文案语气",
+    "输出语言",
+]
+TEMPLATE_EXAMPLE_ROWS = [
+    [
+        "宿舍床头收纳挂篮",
+        "免打孔，可挂床边，适合大学生宿舍，可放手机、眼镜、充电器和纸巾",
+        "拼多多",
+        "便宜实用、有生活感",
+        "中文",
+    ],
+    [
+        "不锈钢保温杯",
+        "500ml，316不锈钢，适合学生和上班族，保温12小时",
+        "淘宝",
+        "简洁、有购买欲",
+        "中文",
+    ],
+]
 COLUMN_WIDTHS = {
     "商品名称": 24,
     "商品信息": 36,
@@ -44,10 +67,34 @@ COLUMN_WIDTHS = {
     "处理状态": 12,
     "错误信息": 36,
 }
+TEMPLATE_COLUMN_WIDTHS = {
+    "商品名称": 24,
+    "商品信息": 56,
+    "目标平台": 14,
+    "文案语气": 24,
+    "输出语言": 12,
+}
 
 
 class ExcelValidationError(ValueError):
     pass
+
+
+def generate_excel_template() -> BytesIO:
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "商品信息模板"
+    sheet.append(TEMPLATE_HEADERS)
+
+    for row in TEMPLATE_EXAMPLE_ROWS:
+        sheet.append(row)
+
+    _apply_template_layout(sheet)
+
+    output = BytesIO()
+    workbook.save(output)
+    output.seek(0)
+    return output
 
 
 def generate_excel_file(file_stream) -> BytesIO:
@@ -199,6 +246,30 @@ def _apply_output_layout(sheet) -> None:
     sheet.row_dimensions[1].height = 28
     sheet.freeze_panes = "A2"
     last_column = get_column_letter(len(OUTPUT_HEADERS))
+    sheet.auto_filter.ref = f"A1:{last_column}{max(sheet.max_row, 1)}"
+
+
+def _apply_template_layout(sheet) -> None:
+    header_fill = PatternFill(fill_type="solid", fgColor="F3F4F6")
+    header_font = Font(bold=True)
+    top_wrap_alignment = Alignment(vertical="top", wrap_text=True)
+
+    for cell in sheet[1]:
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = top_wrap_alignment
+
+    for row in sheet.iter_rows(min_row=2):
+        for cell in row:
+            cell.alignment = top_wrap_alignment
+
+    for index, header in enumerate(TEMPLATE_HEADERS, start=1):
+        column_letter = get_column_letter(index)
+        sheet.column_dimensions[column_letter].width = TEMPLATE_COLUMN_WIDTHS[header]
+
+    sheet.row_dimensions[1].height = 28
+    sheet.freeze_panes = "A2"
+    last_column = get_column_letter(len(TEMPLATE_HEADERS))
     sheet.auto_filter.ref = f"A1:{last_column}{max(sheet.max_row, 1)}"
 
 

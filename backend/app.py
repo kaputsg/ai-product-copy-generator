@@ -1,6 +1,6 @@
 from flask import Flask, jsonify, request, send_file
 from deepseek_text import generate_product_copy
-from excel_service import ExcelValidationError, generate_excel_file
+from excel_service import ExcelValidationError, generate_excel_file, generate_excel_template
 from withLC import get_product_info
 
 app = Flask(__name__)
@@ -65,5 +65,16 @@ def generate_excel():
         output,
         as_attachment=True,
         download_name="generated_products.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+@app.route("/api/excel-template", methods=["GET"])
+def download_excel_template():
+    output = generate_excel_template()
+
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name="product_template.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
