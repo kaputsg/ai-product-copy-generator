@@ -403,10 +403,6 @@ POST /api/generate
 - DeepSeek API 接入
 - JSON 结构化输出
 
-
-把它替换成下面这段：
-
-```markdown
 ## 项目截图
 
 ### 单商品生成页面
